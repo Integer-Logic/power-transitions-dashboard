@@ -2,6 +2,103 @@
 
 ## Latest Changes (2026-02-04)
 
+### src/DashboardContent.jsx - Score Persistence Fix
+
+**Problem**: Calculated scores were displayed in AddSiteModal preview but never saved to the database.
+
+#### New Import
+
+```javascript
+import { SCORE_MAPPINGS } from './constants/index.jsx';
+```
+
+#### poi_voltage_kv Added to State
+
+**Initial State** (line 155):
+```javascript
+const [newSiteData, setNewSiteData] = useState({
+  // ... existing fields ...
+  transactability: "",
+  poi_voltage_kv: ""  // NEW
+});
+```
+
+**Reset State in closeAddSiteModal**:
+```javascript
+setNewSiteData({
+  // ... existing fields ...
+  transactability: "",
+  poi_voltage_kv: ""  // NEW
+});
+```
+
+**Numeric Fields Array**:
+```javascript
+const numericFields = [
+  'legacy_nameplate_capacity_mw', 'redev_capacity_mw',
+  'heat_rate_btu_kwh', 'redev_heatrate_btu_kwh',
+  'capacity_factor_2024', 'overall_project_score',
+  'thermal_operating_score', 'redevelopment_score',
+  'poi_voltage_kv'  // NEW
+];
+```
+
+#### Score Calculation in handleAddSiteSubmit
+
+**NEW**: Calculate and add scores before sending to API:
+
+```javascript
+// Calculate component scores from raw values
+const legacyCod = cleanSiteData.legacy_cod;
+const capacityMW = cleanSiteData.legacy_nameplate_capacity_mw;
+const fuel = cleanSiteData.fuel;
+const capacityFactor = cleanSiteData.capacity_factor_2024;
+const iso = cleanSiteData.iso;
+const transactability = cleanSiteData.transactability;
+
+// Calculate and add scores to data being sent
+cleanSiteData.plant_cod = SCORE_MAPPINGS.cod(legacyCod);
+cleanSiteData.capacity_size = SCORE_MAPPINGS.capacitySize(capacityMW, false);
+cleanSiteData.fuel_score = SCORE_MAPPINGS.fuelType(fuel);
+
+// Handle capacity factor conversion (if >1, treat as percentage)
+let cfValue = parseFloat(capacityFactor);
+if (!isNaN(cfValue) && cfValue > 1) cfValue = cfValue / 100;
+cleanSiteData.capacity_factor = SCORE_MAPPINGS.capacityFactor(cfValue);
+
+cleanSiteData.markets = SCORE_MAPPINGS.market(iso);
+cleanSiteData.transactability_scores = SCORE_MAPPINGS.transactability(transactability);
+
+console.log("📊 Calculated scores:", {
+  plant_cod: cleanSiteData.plant_cod,
+  capacity_size: cleanSiteData.capacity_size,
+  fuel_score: cleanSiteData.fuel_score,
+  capacity_factor: cleanSiteData.capacity_factor,
+  markets: cleanSiteData.markets,
+  transactability_scores: cleanSiteData.transactability_scores
+});
+```
+
+#### Data Flow After Fix
+
+```
+User fills form → Raw values stored in newSiteData
+                           ↓
+handleAddSiteSubmit() builds cleanSiteData from raw values
+                           ↓
+SCORE_MAPPINGS calculates derived scores:
+  - legacy_cod "1995" → plant_cod = 3
+  - fuel "Gas" → fuel_score = 1
+  - iso "PJM" → markets = 3
+  - etc.
+                           ↓
+Both raw values AND calculated scores sent to backend
+                           ↓
+Database stores everything correctly
+```
+
+---
+
 ### src/components/Modals/AddSiteModal.jsx - Auto-Scoring Preview
 
 Added real-time score calculation and preview to the Add New Project modal.

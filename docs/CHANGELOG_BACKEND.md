@@ -2,6 +2,86 @@
 
 ## Latest Changes (2026-02-04)
 
+### backend/models/projectModel.js - M&A Tier Case-Insensitivity Fix
+
+**Problem**: M&A Tier dropdown values with different casing (e.g., "Second Round" vs "second round") weren't being mapped correctly to tier IDs.
+
+**Solution**: Normalize M&A Tier values to lowercase before mapping.
+
+#### handleMaTier Function (in BOTH createProject and updateProject)
+
+**OLD**:
+```javascript
+const handleMaTier = (maTierValue) => {
+  if (!maTierValue) return null;
+
+  const maTierMap = {
+    'Owned': 1,
+    'Exclusivity': 2,
+    'second round': 3,
+    'first round': 4,
+    'pipeline': 5,
+    'passed': 6
+  };
+
+  return maTierMap[maTierValue] || null;
+};
+```
+
+**NEW**:
+```javascript
+const handleMaTier = (maTierValue) => {
+  if (!maTierValue) return null;
+
+  // Normalize to lowercase for case-insensitive matching
+  const normalizedValue = maTierValue.toString().toLowerCase().trim();
+
+  const maTierMap = {
+    'owned': 1,
+    'exclusivity': 2,
+    'second round': 3,
+    'first round': 4,
+    'pipeline': 5,
+    'passed': 6
+  };
+
+  return maTierMap[normalizedValue] || null;
+};
+```
+
+**Result**: "Second Round", "SECOND ROUND", "second round" all correctly map to ID 3.
+
+---
+
+### backend/migrations/002_add_score_columns.sql - NEW Migration
+
+**Purpose**: Add `capacity_size` and `fuel_score` columns to store calculated scores.
+
+```sql
+-- Add capacity_size column (0 or 1 based on MW threshold)
+ALTER TABLE pipeline_dashboard.projects
+ADD COLUMN IF NOT EXISTS capacity_size INTEGER;
+
+-- Add fuel_score column (0 or 1 based on fuel type)
+ALTER TABLE pipeline_dashboard.projects
+ADD COLUMN IF NOT EXISTS fuel_score INTEGER;
+
+-- Add comments for documentation
+COMMENT ON COLUMN pipeline_dashboard.projects.capacity_size IS
+  'Score: 1 if MW > 50 (individual) or > 150 (portfolio), else 0';
+COMMENT ON COLUMN pipeline_dashboard.projects.fuel_score IS
+  'Score: 1 for Gas/Oil, 0 for Solar/Wind/Coal/BESS';
+```
+
+**To run this migration**:
+```sql
+-- Execute in Supabase SQL Editor or psql
+ALTER TABLE pipeline_dashboard.projects ADD COLUMN IF NOT EXISTS capacity_size INTEGER;
+ALTER TABLE pipeline_dashboard.projects ADD COLUMN IF NOT EXISTS fuel_score INTEGER;
+```
+
+---
+
 ### backend/utils/scoreCalculations.js - New Scoring Functions
 
 Added two new scoring functions for the Add New Project auto-scoring feature:

@@ -6,10 +6,58 @@ The score calculation system was completely refactored to:
 1. Use a **single source of truth** for score calculations
 2. Properly handle **N/A value propagation** when Excel data is missing
 3. Match the **exact Excel formulas**
+4. **Persist calculated scores to database** when creating projects
 
 ---
 
 ## Latest Changes (2026-02-04)
+
+### Score Persistence Fix - Critical Bug Fix
+
+**Problem**: Calculated scores were displayed in the AddSiteModal preview but **never saved to the database**.
+
+**Root Cause**:
+- `AddSiteModal.jsx` calculated scores in useEffect into `calculatedScores` state
+- These scores were displayed in the "Calculated Scores Preview" section
+- But `handleAddSiteSubmit` in `DashboardContent.jsx` only sent raw values, NOT the calculated scores
+- Result: Legacy COD "1995" was stored as-is, but `plant_cod` score (should be 3) was never saved
+
+**Solution**: Added score calculations to `handleAddSiteSubmit` using `SCORE_MAPPINGS`:
+
+```javascript
+// In handleAddSiteSubmit, after building cleanSiteData:
+cleanSiteData.plant_cod = SCORE_MAPPINGS.cod(legacyCod);
+cleanSiteData.capacity_size = SCORE_MAPPINGS.capacitySize(capacityMW, false);
+cleanSiteData.fuel_score = SCORE_MAPPINGS.fuelType(fuel);
+cleanSiteData.capacity_factor = SCORE_MAPPINGS.capacityFactor(cfValue);
+cleanSiteData.markets = SCORE_MAPPINGS.market(iso);
+cleanSiteData.transactability_scores = SCORE_MAPPINGS.transactability(transactability);
+```
+
+**Database Migration Required**:
+```sql
+ALTER TABLE pipeline_dashboard.projects ADD COLUMN IF NOT EXISTS capacity_size INTEGER;
+ALTER TABLE pipeline_dashboard.projects ADD COLUMN IF NOT EXISTS fuel_score INTEGER;
+```
+
+### Scores Now Persisted
+
+| Score Field | Calculated From | Database Column |
+|-------------|-----------------|-----------------|
+| Plant COD | Legacy COD year | `plant_cod` (existing) |
+| Capacity Size | MW | `capacity_size` (NEW) |
+| Fuel Score | Fuel Type | `fuel_score` (NEW) |
+| Capacity Factor | CF% | `capacity_factor` (existing) |
+| Markets | ISO/RTO | `markets` (existing) |
+| Transactability | Transactability dropdown | `transactability_scores` (existing) |
+
+### Score Usage Context
+
+**Important Note**: While all 6 scores are now saved to the database:
+- **Thermal Operating Score** uses: plant_cod, markets, transactability, thermal_optimization, environmental
+- **capacity_size** and **fuel_score** are tracked for reporting/filtering but NOT used in score calculations
+
+---
 
 ### New Scoring Functions in SCORE_MAPPINGS
 

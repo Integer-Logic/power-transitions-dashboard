@@ -8,7 +8,40 @@ This document outlines all changes made to the power-pipeline-dashboard codebase
 
 ## Latest Changes (2026-02-04)
 
-### Add New Project - Auto-Scoring Rules
+### Add Project - Score Persistence Fix (HIGH PRIORITY)
+
+**Problem**: Calculated scores (Plant COD, Fuel, Capacity Size, etc.) were displayed in the preview but **never saved to the database** when creating a project.
+
+**Root Cause**: `handleAddSiteSubmit` in `DashboardContent.jsx` only sent raw values, not the calculated scores from `SCORE_MAPPINGS`.
+
+#### Files Modified
+| File | Changes |
+|------|---------|
+| `src/DashboardContent.jsx` | Import SCORE_MAPPINGS, calculate scores in handleAddSiteSubmit, add poi_voltage_kv to state/reset/numericFields |
+| `backend/models/projectModel.js` | Make M&A Tier mapping case-insensitive (both createProject and updateProject) |
+| `backend/migrations/002_add_score_columns.sql` | **NEW** Migration to add `capacity_size` and `fuel_score` columns |
+
+#### Scores Now Saved to Database
+| Score Field | Calculated From | Rules |
+|-------------|-----------------|-------|
+| `plant_cod` | Legacy COD year | 3 if <2000, 2 if 2000-2005, 1 if >2005 |
+| `capacity_size` | MW | 1 if >50MW (individual) or >150MW (portfolio), else 0 |
+| `fuel_score` | Fuel Type | 1 for Gas/Oil, 0 for Solar/Wind/Coal/BESS |
+| `capacity_factor` | CF% | 3 if <10%, 2 if 10-25%, 1 if 25-100% |
+| `markets` | ISO/RTO | 3=PJM/NYISO/ISO-NE, 2=MISO North/SERC, 1=SPP/MISO South, 0=ERCOT/WECC/CAISO |
+| `transactability_scores` | Transactability | 3=Bilateral developed, 2=Bilateral new/<10 bidders, 1=Competitive >10 |
+
+#### POI Voltage Field Added
+- Added `poi_voltage_kv` to initial state, reset state, and numericFields array
+- Ensures POI Voltage is properly handled as a numeric field
+
+#### M&A Tier Case-Insensitivity Fix
+- Backend now normalizes M&A Tier values to lowercase before mapping
+- "Second Round", "SECOND ROUND", "second round" all map to ID 3
+
+---
+
+### Add New Project - Auto-Scoring Rules (Previous)
 
 Added real-time score calculation and preview to the Add New Project modal.
 
@@ -32,10 +65,11 @@ Added real-time score calculation and preview to the Add New Project modal.
 
 ## Files Changed
 
-### New Files Added (6 files)
+### New Files Added (7 files)
 
 | File Path | Description |
 |-----------|-------------|
+| `backend/migrations/002_add_score_columns.sql` | **NEW** Migration to add `capacity_size` and `fuel_score` columns |
 | `backend/scripts/checkTransactability.js` | Script for validating transactability data |
 | `backend/scripts/importToSupabase.js` | Script for importing data to Supabase |
 | `backend/scripts/runMigration.js` | Database migration runner script |
