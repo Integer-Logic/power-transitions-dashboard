@@ -1,5 +1,66 @@
 # Backend Changes Detail
 
+## Latest Changes (2026-02-04)
+
+### backend/utils/scoreCalculations.js - New Scoring Functions
+
+Added two new scoring functions for the Add New Project auto-scoring feature:
+
+#### calculateCapacitySizeScore
+
+```javascript
+/**
+ * Calculate Capacity Size Score
+ * Scores based on MW threshold: >50MW individual or >150MW portfolio = 1, else 0
+ *
+ * @param {number|string} mw - Capacity in MW
+ * @param {boolean} isPortfolio - Whether this is a portfolio project
+ * @returns {number|null} - Score (0 or 1) or null if input is missing
+ */
+function calculateCapacitySizeScore(mw, isPortfolio = false) {
+  if (mw === null || mw === undefined || mw === '') return null;
+  const mwNum = parseFloat(mw);
+  if (isNaN(mwNum)) return null;
+  const threshold = isPortfolio ? 150 : 50;
+  return mwNum > threshold ? 1 : 0;
+}
+```
+
+#### calculateFuelScore
+
+```javascript
+/**
+ * Calculate Fuel Type Score
+ * Gas/Oil = 1, Solar/Wind/Coal/BESS = 0
+ *
+ * @param {string} fuel - Fuel type
+ * @returns {number|null} - Score (0 or 1) or null if input is missing
+ */
+function calculateFuelScore(fuel) {
+  if (fuel === null || fuel === undefined || fuel === '') return null;
+  const fuelStr = String(fuel).trim().toLowerCase();
+  if (fuelStr === '') return null;
+  // Gas, Oil = 1 point
+  if (fuelStr.includes('gas') || fuelStr.includes('oil')) return 1;
+  // Solar, Wind, Coal, BESS = 0 points
+  if (fuelStr.includes('solar') || fuelStr.includes('wind') ||
+      fuelStr.includes('coal') || fuelStr.includes('bess')) return 0;
+  return 0; // Default
+}
+```
+
+#### Updated Exports
+
+```javascript
+module.exports = {
+  // ... existing exports
+  calculateCapacitySizeScore,
+  calculateFuelScore
+};
+```
+
+---
+
 ## backend/models/expertAnalysis.js
 
 ### Storage Architecture Change (Option B)

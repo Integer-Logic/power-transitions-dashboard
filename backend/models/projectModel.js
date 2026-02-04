@@ -237,17 +237,20 @@ const createProject = async (projectData) => {
 
     const handleMaTier = (maTierValue) => {
       if (!maTierValue) return null;
-      
+
+      // Normalize to lowercase for case-insensitive matching
+      const normalizedValue = maTierValue.toString().toLowerCase().trim();
+
       const maTierMap = {
-        'Owned': 1,
-        'Exclusivity': 2,
+        'owned': 1,
+        'exclusivity': 2,
         'second round': 3,
         'first round': 4,
         'pipeline': 5,
         'passed': 6
       };
-      
-      return maTierMap[maTierValue] || null;
+
+      return maTierMap[normalizedValue] || null;
     };
 
     for (const [key, value] of Object.entries(projectData)) {
@@ -344,17 +347,20 @@ const updateProject = async (id, updates) => {
     
     const handleMaTier = (maTierValue) => {
       if (!maTierValue) return null;
-      
+
+      // Normalize to lowercase for case-insensitive matching
+      const normalizedValue = maTierValue.toString().toLowerCase().trim();
+
       const maTierMap = {
-        'Owned': 1,
-        'Exclusivity': 2,
+        'owned': 1,
+        'exclusivity': 2,
         'second round': 3,
         'first round': 4,
         'pipeline': 5,
         'passed': 6
       };
-      
-      return maTierMap[maTierValue] || null;
+
+      return maTierMap[normalizedValue] || null;
     };
 
     for (const [key, value] of Object.entries(updates)) {

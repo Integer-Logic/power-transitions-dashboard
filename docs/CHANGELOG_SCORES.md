@@ -9,6 +9,132 @@ The score calculation system was completely refactored to:
 
 ---
 
+## Latest Changes (2026-02-04)
+
+### New Scoring Functions in SCORE_MAPPINGS
+
+Added two new scoring functions to `src/constants/index.jsx`:
+
+#### capacitySize
+
+Scores based on MW threshold with different rules for individual vs portfolio projects.
+
+```javascript
+capacitySize: (mw, isPortfolio = false) => {
+  if (mw === null || mw === undefined || mw === '') return null;
+  const mwNum = parseFloat(mw);
+  if (isNaN(mwNum)) return null;
+  const threshold = isPortfolio ? 150 : 50;
+  return mwNum > threshold ? 1 : 0;
+},
+```
+
+| Type | Threshold | >Threshold | ≤Threshold |
+|------|-----------|------------|------------|
+| Individual | 50 MW | 1 | 0 |
+| Portfolio | 150 MW | 1 | 0 |
+
+#### fuelType
+
+Scores fuel types based on dispatchability.
+
+```javascript
+fuelType: (fuel) => {
+  if (fuel === null || fuel === undefined || fuel === '') return null;
+  const fuelStr = String(fuel).trim().toLowerCase();
+  if (fuelStr === '') return null;
+  // Gas, Oil = 1 point
+  if (fuelStr.includes('gas') || fuelStr.includes('oil')) return 1;
+  // Solar, Wind, Coal, BESS = 0 points
+  if (fuelStr.includes('solar') || fuelStr.includes('wind') ||
+      fuelStr.includes('coal') || fuelStr.includes('bess')) return 0;
+  return 0; // Default
+},
+```
+
+| Fuel Type | Score |
+|-----------|-------|
+| Gas | 1 |
+| Oil | 1 |
+| Solar | 0 |
+| Wind | 0 |
+| Coal | 0 |
+| BESS | 0 |
+
+### Fixed: transactability Function
+
+**Problem**: The transactability dropdown stores numeric values (1, 2, 3) but the scoring is inverted.
+
+**OLD** (incorrect for dropdown values):
+```javascript
+transactability: (type) => {
+  if (typeof type !== 'string') {
+    const num = parseFloat(type);
+    if (!isNaN(num)) return Math.min(Math.max(Math.round(num), 0), 3);
+    return null;
+  }
+  // ... text handling
+},
+```
+
+**NEW** (properly maps dropdown values):
+```javascript
+transactability: (type) => {
+  if (type === null || type === undefined || type === '') return null;
+
+  // Handle numeric values from dropdown (1, 2, 3)
+  const num = parseInt(type);
+  if (!isNaN(num)) {
+    // Dropdown value 1 = Bilateral w/ developed = highest score (3)
+    // Dropdown value 2 = Bilateral new/Process <10 = score 2
+    // Dropdown value 3 = Competitive >10 = lowest score (1)
+    if (num === 1) return 3;
+    if (num === 2) return 2;
+    if (num === 3) return 1;
+  }
+
+  // Handle text descriptions (fallback)
+  const typeStr = String(type).trim().toLowerCase();
+  if (typeStr.includes("bilateral") && typeStr.includes("developed")) return 3;
+  if (typeStr.includes("bilateral") || typeStr.includes("process")) return 2;
+  if (typeStr.includes("competitive")) return 1;
+  return 2;
+},
+```
+
+| Dropdown Value | Label | Score |
+|----------------|-------|-------|
+| 1 | Bilateral w/ developed relationship | 3 |
+| 2 | Bilateral new/Process <10 bidders | 2 |
+| 3 | Competitive >10 bidders | 1 |
+
+### Complete Scoring Rules Reference
+
+| Field | Values | Score |
+|-------|--------|-------|
+| **Capacity Size** | >50MW individual or >150MW portfolio | 1 |
+| | ≤50MW individual or ≤150MW portfolio | 0 |
+| **Fuel** | Gas, Oil | 1 |
+| | Solar, Wind, Coal, BESS | 0 |
+| **Unit COD** | <2000 | 3 |
+| | 2000-2005 | 2 |
+| | >2005 | 1 |
+| **Capacity Factor** | <10% | 3 |
+| | 10-25% | 2 |
+| | 25-100% | 1 |
+| **Markets** | PJM, NYISO, ISO-NE | 3 |
+| | MISO North, SERC | 2 |
+| | SPP, MISO South | 1 |
+| | ERCOT, WECC, CAISO | 0 |
+| **Transactability** | Bilateral w/ developed relationship | 3 |
+| | Bilateral new/Process <10 bidders | 2 |
+| | Competitive Process >10 bidders | 1 |
+| **Thermal Optimization** | Readily apparent value add | 2 |
+| | No identifiable value add | 1 |
+| | Yet to be saved | 0 |
+
+---
+
 ## New Files
 
 ### src/utils/naValues.js

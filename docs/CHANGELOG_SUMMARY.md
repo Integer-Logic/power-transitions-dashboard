@@ -6,6 +6,30 @@ This document outlines all changes made to the power-pipeline-dashboard codebase
 
 ---
 
+## Latest Changes (2026-02-04)
+
+### Add New Project - Auto-Scoring Rules
+
+Added real-time score calculation and preview to the Add New Project modal.
+
+#### New Scoring Functions
+- **Capacity Size**: >50MW individual or >150MW portfolio = 1, else 0
+- **Fuel Type**: Gas/Oil = 1, Solar/Wind/Coal/BESS = 0
+
+#### Files Modified
+| File | Changes |
+|------|---------|
+| `src/constants/index.jsx` | Added `capacitySize` and `fuelType` to SCORE_MAPPINGS, fixed `transactability` for numeric dropdown values |
+| `src/components/Modals/AddSiteModal.jsx` | Added portfolio checkbox, real-time score calculation, Calculated Scores Preview section |
+| `backend/utils/scoreCalculations.js` | Added `calculateCapacitySizeScore` and `calculateFuelScore` functions |
+
+#### Features Added
+- **Portfolio Checkbox**: Toggle between individual (>50MW) and portfolio (>150MW) capacity thresholds
+- **Real-Time Score Preview**: Shows 6 calculated scores as user fills form (Capacity Size, Fuel, Unit COD, Capacity Factor, Markets, Transactability)
+- **Color-Coded Scores**: Green (high), yellow (medium), red (low), gray (N/A)
+
+---
+
 ## Files Changed
 
 ### New Files Added (6 files)

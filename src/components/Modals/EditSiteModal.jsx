@@ -4,9 +4,10 @@ const EditSiteModal = ({
   showEditModal,
   closeEditModal,
   handleUpdateProject,
+  handleDeleteProject,
   projectData,
   allData,
-  dropdownOptions, 
+  dropdownOptions,
   calculateStatusFromCODs
 }) => {
   const [formData, setFormData] = useState({});
@@ -22,6 +23,8 @@ const EditSiteModal = ({
   const [newRedevFuel, setNewRedevFuel] = useState("");
   const [showNewCoLocateRepowerInput, setShowNewCoLocateRepowerInput] = useState(false);
   const [newCoLocateRepower, setNewCoLocateRepower] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const {
     // From lookup tables:
     projectTypeOptions = [],
@@ -395,6 +398,22 @@ const EditSiteModal = ({
     console.log("Redev Base Case:", formData["Redevelopment Base Case"]);
     
     handleUpdateProject(formData);
+  };
+
+  const handleDelete = async () => {
+    if (!projectData?.id) return;
+
+    setIsDeleting(true);
+    try {
+      await handleDeleteProject(projectData.id);
+      setShowDeleteConfirm(false);
+      closeEditModal();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      alert('Failed to delete project. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!showEditModal) return null;
@@ -1084,8 +1103,37 @@ const EditSiteModal = ({
                 </div>
               </div>
             </div>
+
+            {/* Danger Zone Section */}
+            <div className="form-section" style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: '8px',
+              padding: '16px',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              marginTop: '24px'
+            }}>
+              <h3 className="form-section-title" style={{ color: '#ef4444' }}>Danger Zone</h3>
+              <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '12px' }}>
+                Once you delete a project, it will be removed from all views in the dashboard.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: '1px solid #ef4444',
+                  color: '#ef4444',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Delete This Project
+              </button>
+            </div>
           </div>
-          
+
           {/* Modal Footer */}
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={closeEditModal}>
@@ -1096,6 +1144,75 @@ const EditSiteModal = ({
             </button>
           </div>
         </form>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100
+          }}>
+            <div style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '90%',
+              border: '1px solid #374151'
+            }}>
+              <h3 style={{ color: '#ef4444', marginBottom: '16px' }}>Delete Project?</h3>
+              <p style={{ color: '#94a3b8', marginBottom: '8px' }}>
+                Are you sure you want to delete:
+              </p>
+              <p style={{ color: '#e5e7eb', fontWeight: '600', marginBottom: '24px' }}>
+                {formData["Project Name"] || projectData?.project_name || "this project"}
+              </p>
+              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '24px' }}>
+                The project will be removed from all dashboard views.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #374151',
+                    backgroundColor: 'transparent',
+                    color: '#e5e7eb',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    opacity: isDeleting ? 0.7 : 1
+                  }}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import { calculateProjectScores, generateExpertAnalysis } from './utils/scoring'
 import { US_CITIES } from './constants/cities';
 import { scoringWeights, sortableColumns } from './constants/scoringWeights';
 import { ISO_COLORS, TECH_COLORS } from './constants/colors';
+import { SCORE_MAPPINGS } from './constants/index.jsx';
 import ApprovalSuccess from './components/ApprovalSuccess';
 import { useAuth } from './contexts/AuthContext';
 
@@ -150,7 +151,8 @@ function DashboardContent() {
     status: "",
     ma_tier: "", // NEW: M&A Tier field
     transactability_scores: "",
-    transactability: ""
+    transactability: "",
+    poi_voltage_kv: ""
   });
 
   // Auth context
@@ -1379,7 +1381,8 @@ const handleUpdateProject = async (updatedData) => {
       status: "",
       ma_tier: "", // NEW: M&A Tier field
       transactability_scores: "",
-      transactability: ""
+      transactability: "",
+      poi_voltage_kv: ""
     });
   };
 
@@ -1408,9 +1411,10 @@ const handleUpdateProject = async (updatedData) => {
             'legacy_nameplate_capacity_mw', 'redev_capacity_mw',
             'heat_rate_btu_kwh', 'redev_heatrate_btu_kwh',
             'capacity_factor_2024', 'overall_project_score',
-            'thermal_operating_score', 'redevelopment_score'
+            'thermal_operating_score', 'redevelopment_score',
+            'poi_voltage_kv'
           ];
-          
+
           if (numericFields.includes(key) && !isNaN(parseFloat(value))) {
             cleanSiteData[key] = parseFloat(value);
           } else {
@@ -1418,7 +1422,37 @@ const handleUpdateProject = async (updatedData) => {
           }
         }
       });
-      
+
+      // Calculate component scores from raw values
+      const legacyCod = cleanSiteData.legacy_cod;
+      const capacityMW = cleanSiteData.legacy_nameplate_capacity_mw;
+      const fuel = cleanSiteData.fuel;
+      const capacityFactor = cleanSiteData.capacity_factor_2024;
+      const iso = cleanSiteData.iso;
+      const transactability = cleanSiteData.transactability;
+
+      // Calculate and add scores to data being sent
+      cleanSiteData.plant_cod = SCORE_MAPPINGS.cod(legacyCod);
+      cleanSiteData.capacity_size = SCORE_MAPPINGS.capacitySize(capacityMW, false);
+      cleanSiteData.fuel_score = SCORE_MAPPINGS.fuelType(fuel);
+
+      // Handle capacity factor conversion (if >1, treat as percentage)
+      let cfValue = parseFloat(capacityFactor);
+      if (!isNaN(cfValue) && cfValue > 1) cfValue = cfValue / 100;
+      cleanSiteData.capacity_factor = SCORE_MAPPINGS.capacityFactor(cfValue);
+
+      cleanSiteData.markets = SCORE_MAPPINGS.market(iso);
+      cleanSiteData.transactability_scores = SCORE_MAPPINGS.transactability(transactability);
+
+      console.log("📊 Calculated scores:", {
+        plant_cod: cleanSiteData.plant_cod,
+        capacity_size: cleanSiteData.capacity_size,
+        fuel_score: cleanSiteData.fuel_score,
+        capacity_factor: cleanSiteData.capacity_factor,
+        markets: cleanSiteData.markets,
+        transactability_scores: cleanSiteData.transactability_scores
+      });
+
       // 🔥 NEW: Check and add new Redev Lead/Support to lookup tables
       const redevLead = cleanSiteData.redev_lead || cleanSiteData.redevLead;
       const redevSupport = cleanSiteData.redev_support || cleanSiteData.redevSupport;
@@ -2353,6 +2387,7 @@ const handleUpdateProject = async (updatedData) => {
             showEditModal={showEditModal}
             closeEditModal={closeEditModal}
             handleUpdateProject={handleUpdateProject}
+            handleDeleteProject={handleDeleteProject}
             projectData={editingProject}
             allData={allData}
             dropdownOptions={dropdownOptions}
