@@ -63,19 +63,87 @@ Added real-time score calculation and preview to the Add New Project modal.
 
 ---
 
+## SQL / Database Schema Changes
+
+### Quick Reference - Run Order
+
+| # | File | Purpose |
+|---|------|---------|
+| 1 | `supabase_full_setup.sql` | Initial schema (first time only) |
+| 2 | `supabase_migration_fix.sql` | Add ma_tiers table, rebuild projects |
+| 3 | `supabase_add_expert_tables.sql` | Add expert_analysis, transmission_interconnection |
+| 4 | `supabase_expert_analysis_option_b.sql` | History tracking, new columns |
+| 5 | `migrations/002_add_score_columns.sql` | **NEW** Add capacity_size, fuel_score |
+
+### New Tables
+
+| Table | Purpose |
+|-------|---------|
+| `ma_tiers` | M&A Tier lookup (Owned, Exclusivity, etc.) |
+| `expert_analysis_history` | Audit trail for expert score edits |
+| `transmission_interconnection` | POI voltage data (max 5 entries per project) |
+
+### New Columns on `projects` Table
+
+| Column | Type | Source |
+|--------|------|--------|
+| `capacity_size` | INTEGER | **NEW** - Calculated from MW |
+| `fuel_score` | INTEGER | **NEW** - Calculated from Fuel Type |
+| `overall_score_calc` | DECIMAL(5,2) | Calculated overall score |
+| `thermal_score_calc` | DECIMAL(5,2) | Calculated thermal score |
+| `redev_score_calc` | DECIMAL(5,2) | Calculated redev score |
+| `overall_rating` | VARCHAR(50) | Strong/Moderate/Weak |
+| `confidence` | INTEGER | Confidence percentage |
+| `expert_edited_by` | VARCHAR(100) | Last editor username |
+| `expert_edited_at` | TIMESTAMP | Last edit timestamp |
+| `ma_tier_id` | INTEGER | FK to ma_tiers table |
+
+### New Views
+
+| View | Purpose |
+|------|---------|
+| `v_project_expert_analysis` | Joins projects with expert analysis fields |
+
+### New Functions
+
+| Function | Purpose |
+|----------|---------|
+| `get_project_edit_history(project_id)` | Returns edit history for a project |
+
+**See [CHANGELOG_BACKEND.md](./CHANGELOG_BACKEND.md) for complete SQL details.**
+
+---
+
 ## Files Changed
 
-### New Files Added (7 files)
+### New Files Added (12 files)
 
+#### SQL Migration Files (5)
 | File Path | Description |
 |-----------|-------------|
-| `backend/migrations/002_add_score_columns.sql` | **NEW** Migration to add `capacity_size` and `fuel_score` columns |
+| `backend/scripts/supabase_full_setup.sql` | Complete initial schema setup |
+| `backend/scripts/supabase_migration_fix.sql` | Add ma_tiers, rebuild projects table |
+| `backend/scripts/supabase_add_expert_tables.sql` | Add expert_analysis, transmission tables |
+| `backend/scripts/supabase_expert_analysis_option_b.sql` | History tracking, views, functions |
+| `backend/migrations/002_add_score_columns.sql` | **NEW** Add capacity_size, fuel_score columns |
+
+#### Backend Scripts (3)
+| File Path | Description |
+|-----------|-------------|
 | `backend/scripts/checkTransactability.js` | Script for validating transactability data |
 | `backend/scripts/importToSupabase.js` | Script for importing data to Supabase |
 | `backend/scripts/runMigration.js` | Database migration runner script |
+
+#### Backend Utilities (1)
+| File Path | Description |
+|-----------|-------------|
 | `backend/utils/scoreCalculations.js` | Backend score calculation utilities (mirrors frontend) |
-| `src/utils/naValues.js` | **NEW** N/A value handling utilities for missing Excel data |
-| `src/utils/scoreCalculations.js` | **NEW** Canonical score calculation functions |
+
+#### Frontend Utilities (2)
+| File Path | Description |
+|-----------|-------------|
+| `src/utils/naValues.js` | N/A value handling utilities for missing Excel data |
+| `src/utils/scoreCalculations.js` | Canonical score calculation functions |
 
 ### Modified Files (20 files)
 
