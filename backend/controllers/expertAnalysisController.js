@@ -243,20 +243,28 @@ const getHistoryEntry = async (req, res) => {
 // @desc    Get transmission interconnection data
 // @route   GET /api/transmission-interconnection
 // @access  Private
+// Supports both ?project=name and ?projectId=123
 const getTransmissionInterconnection = async (req, res) => {
   try {
-    const { project } = req.query;
+    const { project, projectId } = req.query;
 
-    console.log('🔍 API Request: GET /api/transmission-interconnection', { project });
+    console.log('🔍 API Request: GET /api/transmission-interconnection', { project, projectId });
 
-    if (!project) {
+    if (!project && !projectId) {
       return res.status(400).json({
         success: false,
-        message: 'Project name is required'
+        message: 'Project name or project ID is required'
       });
     }
 
-    const transmissionData = await expertAnalysis.getTransmissionInterconnectionByProject(project);
+    let transmissionData;
+
+    // Prefer projectId if provided (more reliable)
+    if (projectId) {
+      transmissionData = await expertAnalysis.getTransmissionInterconnectionByProjectId(projectId);
+    } else {
+      transmissionData = await expertAnalysis.getTransmissionInterconnectionByProject(project);
+    }
 
     // Format response
     const formattedData = transmissionData.map(item => ({

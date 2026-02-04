@@ -637,14 +637,20 @@ export const calculatePipelineData = (jsonData, allColumns, setPipelineRows) => 
       cf = "0%";
     }
 
+    // Helper to format score for detailData (handles null for N/A)
+    const formatScore = (score) => {
+      if (score === null || score === undefined) return null;
+      return score.toFixed(2);
+    };
+
     const detailData = {
       "Project Name": row[projectNameCol] || "",
       "Project Codename": row[projectCodenameCol] || "",
       "Plant Owner": row[ownerCol] || "",
       "Location": row[locationCol] || "",
-      "Overall Project Score": overall.toFixed(2),
-      "Thermal Operating Score": thermal.toFixed(2),
-      "Redevelopment Score": redev.toFixed(2),
+      "Overall Project Score": formatScore(overall),
+      "Thermal Operating Score": formatScore(thermal),
+      "Redevelopment Score": formatScore(redev),
       "Redevelopment (Load) Score": row[redevLoadCol] || "",
       "I&C Score": row[icScoreCol] || "",
       "Legacy Nameplate Capacity (MW)": row[capacityCol] || "",
@@ -691,10 +697,11 @@ export const calculatePipelineData = (jsonData, allColumns, setPipelineRows) => 
       "Redev Support": redevSupport || "",
       "Project Type": projectType || "",
       "Status": status || "", // Add status to detail data
-      "Calculated Overall": overall.toFixed(2),
-      "Calculated Thermal": thermal.toFixed(2),
-      "Calculated Redevelopment": redev.toFixed(2),
-      "Score Breakdown": {}
+      "Calculated Overall": formatScore(overall),
+      "Calculated Thermal": formatScore(thermal),
+      "Calculated Redevelopment": formatScore(redev),
+      "Score Breakdown": {},
+      "has_na": scores.has_na || false // Flag indicating if any score is N/A
     };
 
     return {
@@ -735,6 +742,15 @@ export const calculatePipelineData = (jsonData, allColumns, setPipelineRows) => 
       projectType: projectType,
       // Add calculated status
       status: status,
+      // ADD MISSING FIELDS FOR EDIT MODAL
+      codename: row[projectCodenameCol] || "",
+      acreage: row[siteAcreageCol] || "",
+      fuel: row[fuelCol] || "",
+      markets: row[marketsCol] || "",
+      process: row[allColumns.processCol] || "",
+      gasReference: row[gasReferenceCol] || "",
+      colocateRepower: row[coLocateRepowerCol] || "",
+      contact: row[contactCol] || "",
       detailData: detailData,
       transmissionData: transmissionData
     };

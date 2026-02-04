@@ -226,11 +226,16 @@ function DashboardContent() {
   };
 
   // Fetch transmission interconnection data
-  const fetchTransmissionInterconnection = async (projectName) => {
+  const fetchTransmissionInterconnection = async (projectNameOrId, useProjectId = false) => {
     try {
-      console.log(`[Frontend] Fetching transmission data for project: ${projectName}`);
-      
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/transmission-interconnection?project=${encodeURIComponent(projectName)}`, {
+      console.log(`[Frontend] Fetching transmission data for project: ${projectNameOrId} (useProjectId: ${useProjectId})`);
+
+      // Build the URL with either project name or project ID
+      const queryParam = useProjectId
+        ? `projectId=${encodeURIComponent(projectNameOrId)}`
+        : `project=${encodeURIComponent(projectNameOrId)}`;
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/transmission-interconnection?${queryParam}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'

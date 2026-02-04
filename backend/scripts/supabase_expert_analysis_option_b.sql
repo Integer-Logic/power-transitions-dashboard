@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS expert_analysis_history (
     project_name VARCHAR(255),
 
     -- Individual breakdown scores (for audit purposes)
-    thermal_optimization_score INTEGER DEFAULT 1,
+    thermal_optimization_score INTEGER DEFAULT 0,
     environmental_score INTEGER DEFAULT 2,
     market_score INTEGER DEFAULT 2,
     land_availability_score INTEGER DEFAULT 2,

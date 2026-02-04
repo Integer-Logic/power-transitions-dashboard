@@ -244,15 +244,35 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
   };
 
   // Helper to display score - shows actual value (including 0) or "N/A" for missing
+  // Returns "N/A" for null/missing values to propagate N/A through UI
   const displayScore = (...values) => {
     for (const val of values) {
-      if (val === 0 || val === "0") return "0"; // Explicitly handle 0
-      if (val !== undefined && val !== null && val !== "" && val !== "#N/A" && val !== "N/A") {
-        const num = parseFloat(val);
-        if (!isNaN(num)) return String(num);
+      // Explicitly handle 0 as valid (not missing)
+      if (val === 0 || val === "0") return "0";
+      // Check for null/undefined/empty - return N/A
+      if (val === null || val === undefined) continue;
+      // Check for string N/A values
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed === "" || trimmed === "#N/A" || trimmed === "N/A" || trimmed === "#VALUE!") continue;
       }
+      // Try to parse as number
+      const num = parseFloat(val);
+      if (!isNaN(num)) return String(num);
     }
-    return "N/A"; // Missing data - calculation will use default of 2
+    return "N/A"; // Missing data - N/A propagation
+  };
+
+  // Helper to format score display with N/A handling
+  const formatScoreValue = (value, decimals = 1, maxScore = 3.0) => {
+    if (value === null || value === undefined) return "N/A";
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === "" || trimmed === "N/A" || trimmed === "#N/A") return "N/A";
+    }
+    const num = parseFloat(value);
+    if (isNaN(num)) return "N/A";
+    return `${num.toFixed(decimals)}/${maxScore}`;
   };
 
   // Thermal Operating Score entries - FIXED: Transactability now uses correct column
@@ -444,24 +464,42 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
               <div className="detail-section">
                 <h3 className="detail-section-title">Project Scores</h3>
                 <div className="detail-grid">
-                  {detailData["Overall Project Score"] && (
-                    <div className="detail-item">
-                      <span className="detail-label">Overall Project Score:</span>
-                      <span className="detail-value badge badge-green">{parseFloat(detailData["Overall Project Score"] || 0).toFixed(1)}/6.0</span>
-                    </div>
-                  )}
-                  {detailData["Thermal Operating Score"] && (
-                    <div className="detail-item">
-                      <span className="detail-label">Thermal Operating Score:</span>
-                      <span className="detail-value badge badge-red">{parseFloat(detailData["Thermal Operating Score"] || 0).toFixed(1)}/3.0</span>
-                    </div>
-                  )}
-                  {detailData["Redevelopment Score"] && (
-                    <div className="detail-item">
-                      <span className="detail-label">Redevelopment Score:</span>
-                      <span className="detail-value badge badge-teal">{parseFloat(detailData["Redevelopment Score"] || 0).toFixed(1)}/3.0</span>
-                    </div>
-                  )}
+                  <div className="detail-item">
+                    <span className="detail-label">Overall Project Score:</span>
+                    {(() => {
+                      const score = detailData["Overall Project Score"] ?? detailData["Calculated Overall"];
+                      const displayVal = formatScoreValue(score, 1, 6.0);
+                      return displayVal === "N/A" ? (
+                        <span className="detail-value badge" style={{ backgroundColor: '#6b7280', color: '#e5e7eb' }}>N/A</span>
+                      ) : (
+                        <span className="detail-value badge badge-green">{displayVal}</span>
+                      );
+                    })()}
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Thermal Operating Score:</span>
+                    {(() => {
+                      const score = detailData["Thermal Operating Score"] ?? detailData["Calculated Thermal"];
+                      const displayVal = formatScoreValue(score, 1, 3.0);
+                      return displayVal === "N/A" ? (
+                        <span className="detail-value badge" style={{ backgroundColor: '#6b7280', color: '#e5e7eb' }}>N/A</span>
+                      ) : (
+                        <span className="detail-value badge badge-red">{displayVal}</span>
+                      );
+                    })()}
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Redevelopment Score:</span>
+                    {(() => {
+                      const score = detailData["Redevelopment Score"] ?? detailData["Calculated Redevelopment"];
+                      const displayVal = formatScoreValue(score, 1, 3.0);
+                      return displayVal === "N/A" ? (
+                        <span className="detail-value badge" style={{ backgroundColor: '#6b7280', color: '#e5e7eb' }}>N/A</span>
+                      ) : (
+                        <span className="detail-value badge badge-teal">{displayVal}</span>
+                      );
+                    })()}
+                  </div>
                   {detailData["Redevelopment (Load) Score"] && (
                     <div className="detail-item">
                       <span className="detail-label">Redevelopment (Load) Score:</span>

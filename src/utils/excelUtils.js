@@ -119,7 +119,8 @@ const getColumnDescription = (header) => {
     'Location': 'City, State',
     '2024 Capacity Factor': 'Decimal between 0-1',
     'Project Type': 'M&A,Redev or Redev,Owned or Redev or M&A',
-    'Transmission Data': 'Format: "voltage|injection|withdrawal|constraints|hasExcess;..."'
+    'Transmission Data': 'Format: "voltage|injection|withdrawal|constraints|hasExcess;..."',
+    'Thermal Optimization': '0, 1, or 2 - thermal optimization potential (0=yet to be saved, 1=no value add, 2=readily apparent value add)'
   };
   return descriptions[header] || 'Data column';
 };

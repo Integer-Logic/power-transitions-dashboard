@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { calculateThermalScore, calculateRedevelopmentScore, calculateOverallScore } from '../../utils/scoreCalculations';
+import { calculateThermalScore, calculateRedevelopmentScore, calculateOverallScore, formatScoreDisplay } from '../../utils/scoreCalculations';
 
 const ExpertAnalysisModal = ({ 
   selectedExpertProject, 
@@ -264,20 +264,14 @@ const ExpertAnalysisModal = ({
         }
       }
       
-      // Refresh transmission data
-      if (fetchTransmissionInterconnection) {
-        const projectName = selectedExpertProject?.expertAnalysis?.projectName || 
-                           selectedExpertProject.detailData?.["Project Name"] ||
-                           selectedExpertProject.detailData?.project_name ||
-                           selectedExpertProject.asset ||
-                           "";
-        
-        const freshTransmission = await fetchTransmissionInterconnection(projectName);
-        
+      // Refresh transmission data using projectId for reliability
+      if (fetchTransmissionInterconnection && projectId) {
+        const freshTransmission = await fetchTransmissionInterconnection(projectId, true);
+
         if (freshTransmission && Array.isArray(freshTransmission)) {
           setEditedTransmissionData(freshTransmission);
           setLocalTransmissionData(freshTransmission);
-          
+
           // Update original reference
           originalTransmissionRef.current = JSON.parse(JSON.stringify(freshTransmission));
         }
@@ -324,20 +318,20 @@ const ExpertAnalysisModal = ({
   // Fetch transmission data
   const fetchTransmissionData = useCallback(async () => {
     try {
-      const projectName = selectedExpertProject?.expertAnalysis?.projectName || 
-                       selectedExpertProject.detailData?.["Project Name"] ||
-                       selectedExpertProject.detailData?.project_name ||
-                       selectedExpertProject.asset ||
-                       "";
-      
-      if (!projectName) {
+      const projectId = selectedExpertProject?.id ||
+                       selectedExpertProject?.detailData?.id ||
+                       selectedExpertProject?.expertAnalysis?.projectId;
+
+      if (!projectId) {
+        console.warn('No project ID found for transmission fetch');
         return [];
       }
-      
+
       if (fetchTransmissionInterconnection) {
         try {
-          const data = await fetchTransmissionInterconnection(projectName);
-          
+          // Use projectId for more reliable fetching
+          const data = await fetchTransmissionInterconnection(projectId, true);
+
           if (data && Array.isArray(data)) {
             return data;
           }
@@ -345,9 +339,9 @@ const ExpertAnalysisModal = ({
           console.warn('Transmission fetch failed:', error);
         }
       }
-      
+
       return [];
-      
+
     } catch (error) {
       console.error('Error fetching transmission data:', error);
       return [];
@@ -559,13 +553,11 @@ const ExpertAnalysisModal = ({
         
         setSaveStatus('success');
 
-        // Save transmission data immediately (doesn't affect UI)
-        if (localTransmissionData.length > 0) {
-          if (saveTransmissionInterconnection) {
-            saveTransmissionInterconnection(projectId, localTransmissionData)
-              .then(() => console.log('✅ Transmission data saved'))
-              .catch(error => console.error('Transmission save error:', error));
-          }
+        // Save transmission data immediately (always save, even if empty to handle deletions)
+        if (saveTransmissionInterconnection) {
+          saveTransmissionInterconnection(projectId, localTransmissionData)
+            .then(() => console.log(`✅ Transmission data saved (${localTransmissionData.length} entries)`))
+            .catch(error => console.error('Transmission save error:', error));
         }
 
         // Delay dashboard refresh to allow notification to show
@@ -638,13 +630,28 @@ const ExpertAnalysisModal = ({
     return 'score-poor';
   }, []);
 
-  // Get score text
+  // Get score text - handles N/A
   const getScoreText = useCallback((score) => {
-    const numScore = parseFloat(score) || 0;
+    if (score === null || score === undefined) return 'N/A';
+    const numScore = parseFloat(score);
+    if (isNaN(numScore)) return 'N/A';
     if (numScore >= 2.5) return 'EXCELLENT';
     if (numScore >= 1.5) return 'GOOD';
     if (numScore >= 0.5) return 'FAIR';
     return 'POOR';
+  }, []);
+
+  // Helper to format score for display with N/A handling
+  const formatScoreForDisplay = useCallback((score, decimals = 2, maxScore = 3.0) => {
+    if (score === null || score === undefined) return 'N/A';
+    const numScore = parseFloat(score);
+    if (isNaN(numScore)) return 'N/A';
+    return `${numScore.toFixed(decimals)}/${maxScore}`;
+  }, []);
+
+  // Check if a value is N/A
+  const isScoreNA = useCallback((score) => {
+    return score === null || score === undefined || (typeof score === 'number' && isNaN(score));
   }, []);
 
   // Get rating color
@@ -722,17 +729,23 @@ const ExpertAnalysisModal = ({
     }, 0);
   }, [isEditing]);
 
-  // Add new POI voltage entry
+  // Add new POI voltage entry (max 5)
   const addNewTransmissionEntry = useCallback((e) => {
     if (!isEditing) return;
     e.preventDefault();
-    
-    const projectName = selectedExpertProject?.expertAnalysis?.projectName || 
+
+    // Enforce max 5 entries
+    if (localTransmissionData.length >= 5) {
+      alert('Maximum of 5 POI voltage entries allowed.');
+      return;
+    }
+
+    const projectName = selectedExpertProject?.expertAnalysis?.projectName ||
                        selectedExpertProject.detailData?.["Project Name"] ||
                        selectedExpertProject.detailData?.project_name ||
                        selectedExpertProject.asset ||
                        "";
-    
+
     setLocalTransmissionData(prev => [
       ...prev,
       {
@@ -745,7 +758,7 @@ const ExpertAnalysisModal = ({
         excessWithdrawalCapacity: 0
       }
     ]);
-  }, [isEditing, selectedExpertProject]);
+  }, [isEditing, selectedExpertProject, localTransmissionData.length]);
 
   // Remove POI voltage entry
   const removeTransmissionEntry = useCallback((index) => {
@@ -883,22 +896,26 @@ const ExpertAnalysisModal = ({
           </table>
         </div>
         
-        <div className="transmission-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-          <button 
+        <div className="transmission-actions" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+          <button
             onClick={onAdd}
+            disabled={data.length >= 5}
             style={{
-              background: 'rgba(34, 197, 94, 0.1)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              color: '#86efac',
+              background: data.length >= 5 ? 'rgba(100, 100, 100, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+              border: data.length >= 5 ? '1px solid rgba(100, 100, 100, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+              color: data.length >= 5 ? '#9ca3af' : '#86efac',
               padding: '10px 20px',
               borderRadius: '6px',
-              cursor: 'pointer',
+              cursor: data.length >= 5 ? 'not-allowed' : 'pointer',
               fontWeight: '500',
               fontSize: '14px'
             }}
           >
             + Add POI Voltage
           </button>
+          <span style={{ color: '#a0aec0', fontSize: '12px' }}>
+            {data.length}/5 entries
+          </span>
         </div>
       </div>
     );
@@ -1169,92 +1186,140 @@ const ExpertAnalysisModal = ({
         <div className="overall-score-section" style={{ padding: '20px', borderBottom: '1px solid #4a5568' }}>
           <h3 style={{ color: '#ffffff', margin: '0 0 16px 0', fontSize: '18px' }}>Overall Score Summary</h3>
           <div className="score-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            <div className="score-card" style={{ 
-              background: '#2d3748', 
-              padding: '20px', 
-              borderRadius: '8px', 
+            <div className="score-card" style={{
+              background: '#2d3748',
+              padding: '20px',
+              borderRadius: '8px',
               border: '1px solid #4a5568',
               textAlign: 'center'
             }}>
               <div style={{ color: '#a0aec0', fontSize: '12px', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 OVERALL SCORE
               </div>
-              <div style={{ 
-                fontSize: '28px', 
-                fontWeight: '700', 
-                marginBottom: '4px',
-                color: getScoreColorClass((currentAnalysis?.overallScore || 0) / 2) === 'score-excellent' ? '#10b981' :
-                       getScoreColorClass((currentAnalysis?.overallScore || 0) / 2) === 'score-good' ? '#f59e0b' :
-                       getScoreColorClass((currentAnalysis?.overallScore || 0) / 2) === 'score-fair' ? '#fbbf24' : '#ef4444'
-              }}>
-                {(parseFloat(currentAnalysis?.overallScore) || 0).toFixed(1)}/6.0
-              </div>
-              <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
-                {Math.round(((parseFloat(currentAnalysis?.overallScore) || 0) / 6) * 100)}%
-              </div>
-              <div style={{ 
-                fontWeight: '600', 
-                fontSize: '14px',
-                color: getRatingColor(currentAnalysis?.overallRating)
-              }}>
-                {currentAnalysis?.overallRating || 'N/A'}
-              </div>
+              {isScoreNA(currentAnalysis?.overallScore) ? (
+                <>
+                  <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px', color: '#6b7280' }}>
+                    N/A
+                  </div>
+                  <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
+                    --
+                  </div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#6b7280' }}>
+                    N/A
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    fontSize: '28px',
+                    fontWeight: '700',
+                    marginBottom: '4px',
+                    color: getScoreColorClass((parseFloat(currentAnalysis?.overallScore) || 0) / 2) === 'score-excellent' ? '#10b981' :
+                           getScoreColorClass((parseFloat(currentAnalysis?.overallScore) || 0) / 2) === 'score-good' ? '#f59e0b' :
+                           getScoreColorClass((parseFloat(currentAnalysis?.overallScore) || 0) / 2) === 'score-fair' ? '#fbbf24' : '#ef4444'
+                  }}>
+                    {(parseFloat(currentAnalysis?.overallScore) || 0).toFixed(1)}/6.0
+                  </div>
+                  <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
+                    {Math.round(((parseFloat(currentAnalysis?.overallScore) || 0) / 6) * 100)}%
+                  </div>
+                  <div style={{
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    color: getRatingColor(currentAnalysis?.overallRating)
+                  }}>
+                    {currentAnalysis?.overallRating || 'N/A'}
+                  </div>
+                </>
+              )}
             </div>
-            
-            <div className="score-card" style={{ 
-              background: '#2d3748', 
-              padding: '20px', 
-              borderRadius: '8px', 
+
+            <div className="score-card" style={{
+              background: '#2d3748',
+              padding: '20px',
+              borderRadius: '8px',
               border: '1px solid #4a5568',
               textAlign: 'center'
             }}>
               <div style={{ color: '#a0aec0', fontSize: '12px', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 THERMAL OPERATING SCORE
               </div>
-              <div style={{ 
-                fontSize: '28px', 
-                fontWeight: '700', 
-                marginBottom: '4px',
-                color: getScoreColorClass(currentAnalysis?.thermalScore || 0) === 'score-excellent' ? '#10b981' :
-                       getScoreColorClass(currentAnalysis?.thermalScore || 0) === 'score-good' ? '#f59e0b' :
-                       getScoreColorClass(currentAnalysis?.thermalScore || 0) === 'score-fair' ? '#fbbf24' : '#ef4444'
-              }}>
-                {(parseFloat(currentAnalysis?.thermalScore) || 0).toFixed(2)}/3.0
-              </div>
-              <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
-                {Math.round(((parseFloat(currentAnalysis?.thermalScore) || 0) / 3) * 100)}%
-              </div>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                {getScoreText(parseFloat(currentAnalysis?.thermalScore) || 0)}
-              </div>
+              {isScoreNA(currentAnalysis?.thermalScore) ? (
+                <>
+                  <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px', color: '#6b7280' }}>
+                    N/A
+                  </div>
+                  <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
+                    --
+                  </div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#6b7280' }}>
+                    N/A
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    fontSize: '28px',
+                    fontWeight: '700',
+                    marginBottom: '4px',
+                    color: getScoreColorClass(currentAnalysis?.thermalScore || 0) === 'score-excellent' ? '#10b981' :
+                           getScoreColorClass(currentAnalysis?.thermalScore || 0) === 'score-good' ? '#f59e0b' :
+                           getScoreColorClass(currentAnalysis?.thermalScore || 0) === 'score-fair' ? '#fbbf24' : '#ef4444'
+                  }}>
+                    {(parseFloat(currentAnalysis?.thermalScore) || 0).toFixed(2)}/3.0
+                  </div>
+                  <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
+                    {Math.round(((parseFloat(currentAnalysis?.thermalScore) || 0) / 3) * 100)}%
+                  </div>
+                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                    {getScoreText(parseFloat(currentAnalysis?.thermalScore) || 0)}
+                  </div>
+                </>
+              )}
             </div>
-            
-            <div className="score-card" style={{ 
-              background: '#2d3748', 
-              padding: '20px', 
-              borderRadius: '8px', 
+
+            <div className="score-card" style={{
+              background: '#2d3748',
+              padding: '20px',
+              borderRadius: '8px',
               border: '1px solid #4a5568',
               textAlign: 'center'
             }}>
               <div style={{ color: '#a0aec0', fontSize: '12px', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 REDEVELOPMENT
               </div>
-              <div style={{ 
-                fontSize: '28px', 
-                fontWeight: '700', 
-                marginBottom: '4px',
-                color: getScoreColorClass(currentAnalysis?.redevelopmentScore || 0) === 'score-excellent' ? '#10b981' :
-                       getScoreColorClass(currentAnalysis?.redevelopmentScore || 0) === 'score-good' ? '#f59e0b' :
-                       getScoreColorClass(currentAnalysis?.redevelopmentScore || 0) === 'score-fair' ? '#fbbf24' : '#ef4444'
-              }}>
-                {(parseFloat(currentAnalysis?.redevelopmentScore) || 0).toFixed(2)}/3.0
-              </div>
-              <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
-                {Math.round(((parseFloat(currentAnalysis?.redevelopmentScore) || 0) / 3) * 100)}%
-              </div>
-              <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                {getScoreText(parseFloat(currentAnalysis?.redevelopmentScore) || 0)}
-              </div>
+              {isScoreNA(currentAnalysis?.redevelopmentScore) ? (
+                <>
+                  <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px', color: '#6b7280' }}>
+                    N/A
+                  </div>
+                  <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
+                    --
+                  </div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#6b7280' }}>
+                    N/A
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    fontSize: '28px',
+                    fontWeight: '700',
+                    marginBottom: '4px',
+                    color: getScoreColorClass(currentAnalysis?.redevelopmentScore || 0) === 'score-excellent' ? '#10b981' :
+                           getScoreColorClass(currentAnalysis?.redevelopmentScore || 0) === 'score-good' ? '#f59e0b' :
+                           getScoreColorClass(currentAnalysis?.redevelopmentScore || 0) === 'score-fair' ? '#fbbf24' : '#ef4444'
+                  }}>
+                    {(parseFloat(currentAnalysis?.redevelopmentScore) || 0).toFixed(2)}/3.0
+                  </div>
+                  <div style={{ color: '#a0aec0', fontSize: '14px', marginBottom: '8px' }}>
+                    {Math.round(((parseFloat(currentAnalysis?.redevelopmentScore) || 0) / 3) * 100)}%
+                  </div>
+                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                    {getScoreText(parseFloat(currentAnalysis?.redevelopmentScore) || 0)}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1291,7 +1356,7 @@ const ExpertAnalysisModal = ({
                   <div>
                     {isEditing ? (
                       <select 
-                        value={currentAnalysis?.thermalBreakdown?.thermal_optimization?.score || 1}
+                        value={currentAnalysis?.thermalBreakdown?.thermal_optimization?.score ?? 0}
                         onChange={(e) => handleScoreChange('thermal', 'thermal_optimization', e.target.value)}
                         style={{
                           width: '100%',
@@ -1304,6 +1369,7 @@ const ExpertAnalysisModal = ({
                           marginBottom: '8px'
                         }}
                       >
+                        <option value="0">0 - Yet to be saved</option>
                         <option value="1">1 - No identifiable value add</option>
                         <option value="2">2 - Readily apparent value add</option>
                       </select>
@@ -1315,13 +1381,17 @@ const ExpertAnalysisModal = ({
                         border: '1px solid #4a5568',
                         marginBottom: '8px'
                       }}>
-                        Score: {currentAnalysis?.thermalBreakdown?.thermal_optimization?.score || 1}
+                        Score: {currentAnalysis?.thermalBreakdown?.thermal_optimization?.score ?? 0}
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: '#a0aec0', fontSize: '12px' }}>Weight: 5%</span>
                       <span style={{ color: '#a0aec0', fontSize: '12px' }}>
-                        Contribution: {(((currentAnalysis?.thermalBreakdown?.thermal_optimization?.score || 1) * 0.05).toFixed(2))}
+                        Contribution: {(() => {
+                          const score = currentAnalysis?.thermalBreakdown?.thermal_optimization?.score;
+                          if (score === null || score === undefined) return 'N/A';
+                          return ((score ?? 0) * 0.05).toFixed(2);
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -1431,7 +1501,11 @@ const ExpertAnalysisModal = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: '#a0aec0', fontSize: '12px' }}>Weight: 40%</span>
                       <span style={{ color: '#a0aec0', fontSize: '12px' }}>
-                        Contribution: {(((currentAnalysis?.redevelopmentBreakdown?.redev_market?.score ?? 2) * 0.40).toFixed(2))}
+                        Contribution: {(() => {
+                          const score = currentAnalysis?.redevelopmentBreakdown?.redev_market?.score;
+                          if (score === null || score === undefined) return 'N/A';
+                          return (score * 0.40).toFixed(2);
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -1509,14 +1583,18 @@ const ExpertAnalysisModal = ({
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #4a5568' }}>
                     <span style={{ fontWeight: '500', color: '#e2e8f0' }}>Infrastructure Score:</span>
-                    <span style={{ 
-                      fontWeight: '600',
-                      color: getScoreColorClass(currentAnalysis?.infrastructureScore || 0) === 'score-excellent' ? '#10b981' :
-                             getScoreColorClass(currentAnalysis?.infrastructureScore || 0) === 'score-good' ? '#f59e0b' :
-                             getScoreColorClass(currentAnalysis?.infrastructureScore || 0) === 'score-fair' ? '#fbbf24' : '#ef4444'
-                    }}>
-                      {(parseFloat(currentAnalysis?.infrastructureScore) || 0).toFixed(2)}/3.0
-                    </span>
+                    {isScoreNA(currentAnalysis?.infrastructureScore) ? (
+                      <span style={{ fontWeight: '600', color: '#6b7280' }}>N/A</span>
+                    ) : (
+                      <span style={{
+                        fontWeight: '600',
+                        color: getScoreColorClass(currentAnalysis?.infrastructureScore || 0) === 'score-excellent' ? '#10b981' :
+                               getScoreColorClass(currentAnalysis?.infrastructureScore || 0) === 'score-good' ? '#f59e0b' :
+                               getScoreColorClass(currentAnalysis?.infrastructureScore || 0) === 'score-fair' ? '#fbbf24' : '#ef4444'
+                      }}>
+                        {(parseFloat(currentAnalysis?.infrastructureScore) || 0).toFixed(2)}/3.0
+                      </span>
+                    )}
                   </div>
                 </div>
                 

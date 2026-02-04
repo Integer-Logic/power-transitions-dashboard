@@ -172,19 +172,22 @@ function calculateRedevelopmentBreakdown(project) {
 export function generateExpertAnalysis(projectData) {
   // Use canonical score calculation function
   const scores = calculateAllScores(projectData);
-  const overallScore = scores.overall_score.toFixed(1);
-  const thermalScore = scores.thermal_score.toFixed(1);
-  const redevelopmentScore = scores.redevelopment_score.toFixed(1);
-  
+
+  // Handle null scores (N/A values) - use 0 as fallback for display
+  const overallScore = scores.overall_score !== null ? scores.overall_score.toFixed(1) : "0.0";
+  const thermalScore = scores.thermal_score !== null ? scores.thermal_score.toFixed(1) : "0.0";
+  const redevelopmentScore = scores.redevelopment_score !== null ? scores.redevelopment_score.toFixed(1) : "0.0";
+
   // Calculate breakdowns for analysis text only (not for scoring)
   const thermalBreakdown = calculateThermalBreakdown(projectData);
   const redevBreakdown = calculateRedevelopmentBreakdown(projectData);
-  
-  // Determine rating based on EXCEL scores
-  const overallRating = overallScore >= 4.5 ? "Strong" : 
-                       overallScore >= 3.0 ? "Moderate" : "Weak";
-  const ratingClass = overallScore >= 4.5 ? "strong" : 
-                     overallScore >= 3.0 ? "moderate" : "weak";
+
+  // Determine rating based on EXCEL scores (use numeric value for comparison)
+  const overallNumeric = parseFloat(overallScore);
+  const overallRating = overallNumeric >= 4.5 ? "Strong" :
+                       overallNumeric >= 3.0 ? "Moderate" : "Weak";
+  const ratingClass = overallNumeric >= 4.5 ? "strong" :
+                     overallNumeric >= 3.0 ? "moderate" : "weak";
   
   // Generate strengths and risks based on breakdowns
   const strengths = generateStrengths(thermalBreakdown, redevBreakdown, projectData);

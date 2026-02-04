@@ -809,19 +809,37 @@ const PipelineTable = ({
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-green">
-                      {row.overall.toFixed(2)}
-                    </span>
+                    {row.overall === null ? (
+                      <span className="badge badge-gray" style={{ backgroundColor: '#6b7280', color: '#e5e7eb' }}>
+                        N/A
+                      </span>
+                    ) : (
+                      <span className="badge badge-green">
+                        {row.overall.toFixed(2)}
+                      </span>
+                    )}
                   </td>
                   <td>
-                    <span className="badge badge-red">
-                      {row.thermal.toFixed(2)}
-                    </span>
+                    {row.thermal === null ? (
+                      <span className="badge badge-gray" style={{ backgroundColor: '#6b7280', color: '#e5e7eb' }}>
+                        N/A
+                      </span>
+                    ) : (
+                      <span className="badge badge-red">
+                        {row.thermal.toFixed(2)}
+                      </span>
+                    )}
                   </td>
                   <td>
-                    <span className="badge badge-teal">
-                      {row.redev.toFixed(2)}
-                    </span>
+                    {row.redev === null ? (
+                      <span className="badge badge-gray" style={{ backgroundColor: '#6b7280', color: '#e5e7eb' }}>
+                        N/A
+                      </span>
+                    ) : (
+                      <span className="badge badge-teal">
+                        {row.redev.toFixed(2)}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <span className="tag tag-dark">{row.mkt}</span>

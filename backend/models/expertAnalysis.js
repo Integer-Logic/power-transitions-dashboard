@@ -78,19 +78,44 @@ class ExpertAnalysis {
       // Parse existing column values (stored as VARCHAR, may be numeric strings)
       // Helper to parse int with default, allowing 0 values
       const parseIntOrDefault = (val, defaultVal) => {
+        if (val === 0) return 0; // Explicit 0 is valid
         const parsed = parseInt(val);
         return isNaN(parsed) ? defaultVal : parsed;
       };
       const parseFloatOrDefault = (val, defaultVal) => {
+        if (val === 0) return 0; // Explicit 0 is valid
         const parsed = parseFloat(val);
         return isNaN(parsed) ? defaultVal : parsed;
       };
 
-      const thermalOptScore = parseIntOrDefault(project.thermal_optimization, 1);  // Min is 1
-      const envScore = parseIntOrDefault(project.environmental_score, 2);          // Allows 0
-      const mktScore = parseIntOrDefault(project.market_score, 2);                 // Allows 0
-      const infraScore = parseFloatOrDefault(project.infra, 2);                    // Allows 0
-      const ixScore = parseIntOrDefault(project.ix, 2);                            // Allows 0
+      // Helper to parse int returning null for missing (for N/A propagation)
+      const parseIntOrNull = (val) => {
+        if (val === null || val === undefined || val === '') return null;
+        if (val === 0) return 0; // Explicit 0 is valid
+        const strVal = String(val).trim();
+        if (strVal === '' || strVal === '#N/A' || strVal === 'N/A' || strVal === '#VALUE!') return null;
+        const parsed = parseInt(val);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      // Helper to parse float returning null for missing (for N/A propagation)
+      const parseFloatOrNull = (val) => {
+        if (val === null || val === undefined || val === '') return null;
+        if (val === 0) return 0; // Explicit 0 is valid
+        const strVal = String(val).trim();
+        if (strVal === '' || strVal === '#N/A' || strVal === 'N/A' || strVal === '#VALUE!') return null;
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      // thermal_optimization defaults to 0 (EXCEPTION - does not propagate N/A)
+      const thermalOptScore = parseIntOrDefault(project.thermal_optimization, 0);
+
+      // These fields propagate N/A when missing
+      const envScore = parseIntOrNull(project.environmental_score);          // Returns null if missing
+      const mktScore = parseIntOrNull(project.market_score);                 // Returns null if missing
+      const infraScore = parseFloatOrNull(project.infra);                    // Returns null if missing
+      const ixScore = parseIntOrNull(project.ix);                            // Returns null if missing
 
       // Build the response in the format the frontend expects
       const expertAnalysis = {
@@ -531,16 +556,21 @@ class ExpertAnalysis {
     try {
       const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
 
+      console.log('🔍 Fetching transmission data for project ID:', projectId);
+
+      // Query transmission data by project_id (stored as varchar in transmission_interconnection)
+      // project_id can be stored as string or integer, so we compare both ways
       const query = `
-        SELECT ti.*, p.project_name as actual_project_name
+        SELECT ti.*, p.project_name as actual_project_name, p.project_codename, p.iso, p.plant_owner
         FROM ${schema}.transmission_interconnection ti
-        LEFT JOIN ${schema}.projects p ON ti.project_id = p.id::varchar
-        WHERE ti.project_id = $1
-        AND p.is_active = true
+        LEFT JOIN ${schema}.projects p ON ti.project_id::integer = p.id
+        WHERE ti.project_id = $1::varchar
         ORDER BY ti.created_at DESC
       `;
 
       const result = await pool.query(query, [projectId]);
+
+      console.log(`✅ Found ${result.rows.length} transmission records for project ID ${projectId}`);
       return result.rows;
     } catch (error) {
       console.error('❌ Error in getTransmissionInterconnectionByProjectId:', error);
@@ -559,6 +589,11 @@ class ExpertAnalysis {
 
       if (!projectId || !Array.isArray(transmissionData)) {
         throw new Error('Project ID and transmission data array are required');
+      }
+
+      // Enforce max 5 entries
+      if (transmissionData.length > 5) {
+        throw new Error('Maximum of 5 POI voltage entries allowed');
       }
 
       const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
@@ -581,6 +616,15 @@ class ExpertAnalysis {
 
       console.log(`📋 Found project: ${projectName} (${projectCodename})`);
 
+      // IMPORTANT: Delete ALL existing entries for this project first
+      // This ensures removed entries are properly deleted
+      const deleteQuery = `
+        DELETE FROM ${schema}.transmission_interconnection
+        WHERE project_id = $1
+      `;
+      const deleteResult = await client.query(deleteQuery, [projectId]);
+      console.log(`🗑️ Deleted ${deleteResult.rowCount} existing transmission records for project ID ${projectId}`);
+
       // Insert new transmission data
       if (transmissionData.length > 0) {
         const insertPromises = transmissionData.map(async (item) => {
@@ -596,13 +640,6 @@ class ExpertAnalysis {
               created_at,
               updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-            ON CONFLICT (site, poi_voltage, project_id)
-            DO UPDATE SET
-              excess_injection_capacity = EXCLUDED.excess_injection_capacity,
-              excess_withdrawal_capacity = EXCLUDED.excess_withdrawal_capacity,
-              constraints = EXCLUDED.constraints,
-              excess_ix_capacity = EXCLUDED.excess_ix_capacity,
-              updated_at = NOW()
             RETURNING *
           `;
 
@@ -629,14 +666,14 @@ class ExpertAnalysis {
         const results = await Promise.all(insertPromises);
         const savedData = results.map(result => result.rows[0]);
 
-        console.log(`✅ Saved/updated ${savedData.length} transmission records for project ID ${projectId}`);
+        console.log(`✅ Saved ${savedData.length} transmission records for project ID ${projectId}`);
 
         await client.query('COMMIT');
 
         return savedData;
       } else {
-        // No data to insert
-        console.log(`📭 No transmission data to save for project ID ${projectId}`);
+        // No data to insert (all entries were removed)
+        console.log(`📭 All transmission data removed for project ID ${projectId}`);
         await client.query('COMMIT');
         return [];
       }
