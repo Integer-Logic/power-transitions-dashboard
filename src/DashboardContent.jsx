@@ -243,7 +243,7 @@ function DashboardContent() {
       });
       
       if (!response.ok) {
-        console.log(`[Frontend] Transmission data not found for ${projectName}, status: ${response.status}`);
+        console.log(`[Frontend] Transmission data not found for ${projectNameOrId}, status: ${response.status}`);
         return [];
       }
       
@@ -261,7 +261,7 @@ function DashboardContent() {
         transmissionArray = result.data;
       }
       
-      console.log(`[Frontend] Found ${transmissionArray.length} transmission records for ${projectName}`);
+      console.log(`[Frontend] Found ${transmissionArray.length} transmission records for ${projectNameOrId}`);
       
       // Transform data to frontend format
       const transformedData = transmissionArray.map(item => ({

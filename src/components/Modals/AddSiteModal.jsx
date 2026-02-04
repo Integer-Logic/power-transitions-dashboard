@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SCORE_MAPPINGS } from '../../constants/index.jsx';
 
 const AddSiteModal = ({
   showAddSiteModal,
@@ -55,6 +56,32 @@ const AddSiteModal = ({
   const [newPlantOwner, setNewPlantOwner] = useState("");
   const [showNewCoLocateRepowerInput, setShowNewCoLocateRepowerInput] = useState(false);
   const [newCoLocateRepower, setNewCoLocateRepower] = useState("");
+
+  // Portfolio checkbox state
+  const [isPortfolio, setIsPortfolio] = useState(false);
+
+  // Calculated scores state
+  const [calculatedScores, setCalculatedScores] = useState({});
+
+  // ScoreItem helper component for displaying individual scores
+  const ScoreItem = ({ label, value, max }) => {
+    const displayValue = value === null || value === undefined ? 'N/A' : value;
+    const color = value === null ? '#6b7280' : value >= max * 0.66 ? '#22c55e' : value >= max * 0.33 ? '#f59e0b' : '#ef4444';
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '8px 12px',
+        backgroundColor: 'rgba(30, 41, 59, 0.5)',
+        borderRadius: '6px'
+      }}>
+        <span style={{ color: '#94a3b8', fontSize: '13px' }}>{label}</span>
+        <span style={{ color, fontWeight: '600', fontSize: '14px' }}>
+          {displayValue}{value !== null ? `/${max}` : ''}
+        </span>
+      </div>
+    );
+  };
 
   // Transactability options
   const transactabilityOptions = [
@@ -139,6 +166,38 @@ const AddSiteModal = ({
       setSelectedStatus(statusValue);
     }
   }, [showAddSiteModal, newSiteData]);
+
+  // Calculate scores in real-time when form data changes
+  useEffect(() => {
+    const capacity = newSiteData["legacy_nameplate_capacity_mw"] || newSiteData["Legacy Nameplate Capacity (MW)"];
+    const fuel = newSiteData["fuel"] || newSiteData["Fuel"];
+    const cod = newSiteData["legacy_cod"] || newSiteData["Legacy COD"];
+    const cf = newSiteData["capacity_factor_2024"] || newSiteData["2024 Capacity Factor"];
+    const iso = newSiteData["iso"] || newSiteData["ISO"];
+    const transact = newSiteData["transactability"] || newSiteData["Transactability"];
+
+    // Calculate component scores
+    const capacitySizeScore = SCORE_MAPPINGS.capacitySize ? SCORE_MAPPINGS.capacitySize(capacity, isPortfolio) : null;
+    const fuelScore = SCORE_MAPPINGS.fuelType ? SCORE_MAPPINGS.fuelType(fuel) : null;
+    const codScore = SCORE_MAPPINGS.cod(cod);
+
+    // Convert capacity factor: if > 1, assume percentage and divide by 100
+    let cfValue = parseFloat(cf);
+    if (!isNaN(cfValue) && cfValue > 1) cfValue = cfValue / 100;
+    const cfScore = SCORE_MAPPINGS.capacityFactor(cfValue);
+
+    const marketScore = SCORE_MAPPINGS.market(iso);
+    const transactScore = SCORE_MAPPINGS.transactability(transact);
+
+    setCalculatedScores({
+      capacitySize: capacitySizeScore,
+      fuel: fuelScore,
+      cod: codScore,
+      capacityFactor: cfScore,
+      market: marketScore,
+      transactability: transactScore
+    });
+  }, [newSiteData, isPortfolio]);
 
   // Handle field changes
   const handleFieldChange = (field, value) => {
@@ -585,7 +644,23 @@ const AddSiteModal = ({
                     style={{ width: '100%' }}
                   />
                 </div>
-                
+
+                {/* Portfolio Checkbox */}
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={isPortfolio}
+                      onChange={(e) => setIsPortfolio(e.target.checked)}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    Portfolio Project
+                  </label>
+                  <small className="form-hint">
+                    Check if this is a portfolio (&gt;150MW threshold), uncheck for individual asset (&gt;50MW threshold)
+                  </small>
+                </div>
+
                 {/* POI Voltage Field */}
                 <div className="form-group">
                   <label className="form-label">POI Voltage (KV)</label>
@@ -1125,8 +1200,21 @@ const AddSiteModal = ({
                 </div>
               </div>
             </div>
+
+            {/* Calculated Scores Preview */}
+            <div className="form-section" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', padding: '16px' }}>
+              <h3 className="form-section-title" style={{ color: '#60a5fa' }}>Calculated Scores Preview</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                <ScoreItem label="Capacity Size" value={calculatedScores.capacitySize} max={1} />
+                <ScoreItem label="Fuel" value={calculatedScores.fuel} max={1} />
+                <ScoreItem label="Unit COD" value={calculatedScores.cod} max={3} />
+                <ScoreItem label="Capacity Factor" value={calculatedScores.capacityFactor} max={3} />
+                <ScoreItem label="Markets" value={calculatedScores.market} max={3} />
+                <ScoreItem label="Transactability" value={calculatedScores.transactability} max={3} />
+              </div>
+            </div>
           </div>
-          
+
           {/* Modal Footer */}
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={closeAddSiteModal}>

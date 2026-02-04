@@ -22,6 +22,28 @@ export const PROCESS_OPTIONS = ["P", "B"];
  * - 0 is a valid score, distinct from null (missing)
  */
 export const SCORE_MAPPINGS = {
+  // Capacity Size scoring: >50MW individual or >150MW portfolio = 1, else 0
+  capacitySize: (mw, isPortfolio = false) => {
+    if (mw === null || mw === undefined || mw === '') return null;
+    const mwNum = parseFloat(mw);
+    if (isNaN(mwNum)) return null;
+    const threshold = isPortfolio ? 150 : 50;
+    return mwNum > threshold ? 1 : 0;
+  },
+
+  // Fuel Type scoring: Gas/Oil = 1, Solar/Wind/Coal/BESS = 0
+  fuelType: (fuel) => {
+    if (fuel === null || fuel === undefined || fuel === '') return null;
+    const fuelStr = String(fuel).trim().toLowerCase();
+    if (fuelStr === '') return null;
+    // Gas, Oil = 1 point
+    if (fuelStr.includes('gas') || fuelStr.includes('oil')) return 1;
+    // Solar, Wind, Coal, BESS = 0 points
+    if (fuelStr.includes('solar') || fuelStr.includes('wind') ||
+        fuelStr.includes('coal') || fuelStr.includes('bess')) return 0;
+    return 0; // Default
+  },
+
   cod: (year) => {
     // Check for missing/empty values - return null to propagate N/A
     if (year === null || year === undefined || year === '') return null;
@@ -67,19 +89,26 @@ export const SCORE_MAPPINGS = {
   transactability: (type) => {
     // Check for missing/empty values - return null to propagate N/A
     if (type === null || type === undefined || type === '') return null;
-    if (typeof type !== 'string') {
-      // Try to parse as number if it's a numeric score
-      const num = parseFloat(type);
-      if (!isNaN(num)) return Math.min(Math.max(Math.round(num), 0), 3);
-      return null;
+
+    // Handle numeric values from dropdown (1, 2, 3)
+    const num = parseInt(type);
+    if (!isNaN(num)) {
+      // Dropdown value 1 = Bilateral w/ developed = highest score (3)
+      // Dropdown value 2 = Bilateral new/Process <10 = score 2
+      // Dropdown value 3 = Competitive >10 = lowest score (1)
+      if (num === 1) return 3;
+      if (num === 2) return 2;
+      if (num === 3) return 1;
     }
-    const typeStr = type.trim();
+
+    // Handle text descriptions (fallback)
+    const typeStr = String(type).trim();
     if (typeStr === '' || typeStr === '#N/A' || typeStr === 'N/A' || typeStr === '#VALUE!') return null;
 
     const lowerType = typeStr.toLowerCase();
     if (lowerType.includes("bilateral") && lowerType.includes("developed")) return 3;
-    if (lowerType.includes("bilateral") || lowerType.includes("process") && lowerType.includes("less than 10")) return 2;
-    if (lowerType.includes("competitive") && lowerType.includes("more than 10")) return 1;
+    if (lowerType.includes("bilateral") || lowerType.includes("process")) return 2;
+    if (lowerType.includes("competitive")) return 1;
     return 2;
   },
 

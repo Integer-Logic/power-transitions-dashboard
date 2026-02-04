@@ -205,20 +205,38 @@ const ExpertAnalysisModal = ({
 
   // Check if there are changes
   const hasChanges = useCallback(() => {
-    if (!isEditing) return false;
-    
+    console.log('🔍 [hasChanges] Checking for changes...');
+    console.log('🔍 [hasChanges] isEditing:', isEditing);
+
+    if (!isEditing) {
+      console.log('🔍 [hasChanges] Not in editing mode, returning false');
+      return false;
+    }
+
     // Check analysis changes
     if (originalAnalysisRef.current && editedAnalysis) {
       const analysisChanged = JSON.stringify(originalAnalysisRef.current) !== JSON.stringify(editedAnalysis);
+      console.log('🔍 [hasChanges] Analysis changed:', analysisChanged);
       if (analysisChanged) return true;
     }
-    
+
     // Check transmission changes - use localTransmissionData
-    if (originalTransmissionRef.current && localTransmissionData) {
+    console.log('🔍 [hasChanges] originalTransmissionRef.current:', originalTransmissionRef.current);
+    console.log('🔍 [hasChanges] localTransmissionData:', localTransmissionData);
+
+    if (originalTransmissionRef.current !== undefined && localTransmissionData) {
       const transmissionChanged = JSON.stringify(originalTransmissionRef.current) !== JSON.stringify(localTransmissionData);
+      console.log('🔍 [hasChanges] Transmission changed:', transmissionChanged);
       if (transmissionChanged) return true;
+    } else {
+      // If original is empty/undefined but we have local data, that's a change
+      if (localTransmissionData && localTransmissionData.length > 0) {
+        console.log('🔍 [hasChanges] New transmission data detected');
+        return true;
+      }
     }
-    
+
+    console.log('🔍 [hasChanges] No changes detected');
     return false;
   }, [isEditing, editedAnalysis, localTransmissionData]);
 
@@ -322,28 +340,36 @@ const ExpertAnalysisModal = ({
                        selectedExpertProject?.detailData?.id ||
                        selectedExpertProject?.expertAnalysis?.projectId;
 
+      console.log('🔍 [ExpertAnalysisModal] fetchTransmissionData called with projectId:', projectId);
+
       if (!projectId) {
-        console.warn('No project ID found for transmission fetch');
+        console.warn('⚠️ [ExpertAnalysisModal] No project ID found for transmission fetch');
         return [];
       }
 
       if (fetchTransmissionInterconnection) {
         try {
           // Use projectId for more reliable fetching
+          console.log('📡 [ExpertAnalysisModal] Calling fetchTransmissionInterconnection with projectId:', projectId);
           const data = await fetchTransmissionInterconnection(projectId, true);
 
+          console.log('📥 [ExpertAnalysisModal] Received transmission data:', data);
+
           if (data && Array.isArray(data)) {
+            console.log(`✅ [ExpertAnalysisModal] Returning ${data.length} transmission records`);
             return data;
           }
         } catch (error) {
-          console.warn('Transmission fetch failed:', error);
+          console.warn('❌ [ExpertAnalysisModal] Transmission fetch failed:', error);
         }
+      } else {
+        console.warn('⚠️ [ExpertAnalysisModal] fetchTransmissionInterconnection is not available');
       }
 
       return [];
 
     } catch (error) {
-      console.error('Error fetching transmission data:', error);
+      console.error('❌ [ExpertAnalysisModal] Error fetching transmission data:', error);
       return [];
     }
   }, [selectedExpertProject, fetchTransmissionInterconnection]);
@@ -363,9 +389,14 @@ const ExpertAnalysisModal = ({
         lastProjectIdRef.current = currentProjectId;
       }
       
+      console.log('🚀 [ExpertAnalysisModal] initializeData starting for project:', currentProjectId);
+
       let dbAnalysis = await fetchExpertAnalysisData();
       let dbTransmission = await fetchTransmissionData();
-      
+
+      console.log('📊 [ExpertAnalysisModal] dbTransmission received:', dbTransmission);
+      console.log('📊 [ExpertAnalysisModal] dbTransmission length:', dbTransmission?.length || 0);
+
       let initialAnalysis = generateDefaultAnalysis(selectedExpertProject);
       
       if (dbAnalysis) {
@@ -389,22 +420,27 @@ const ExpertAnalysisModal = ({
       // Store original data for change detection
       originalAnalysisRef.current = JSON.parse(JSON.stringify(initialAnalysis));
       originalTransmissionRef.current = JSON.parse(JSON.stringify(dbTransmission || []));
-      
+
+      console.log('💾 [ExpertAnalysisModal] Setting transmission state with:', dbTransmission || []);
+
       setEditedAnalysis(initialAnalysis);
       setAnalysisData(initialAnalysis);
       setEditedTransmissionData(dbTransmission || []);
       setLocalTransmissionData(dbTransmission || []);
-      
+
+      console.log('✅ [ExpertAnalysisModal] initializeData complete');
+
       isInitialLoad.current = false;
     };
     
     initializeData();
-    
+
     // Cleanup function
     return () => {
       // Optional: Reset some states when component unmounts
     };
-  }, [selectedExpertProject]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedExpertProject, fetchExpertAnalysisData, fetchTransmissionData, generateDefaultAnalysis]);
 
   // Recalculate scores using canonical formula from scoreCalculations.js
   // Thermal Operating Score = (COD × 0.20) + (Markets × 0.30) + (Transactability × 0.30) + (ThermalOpt × 0.05) + (Environmental × 0.15)
@@ -479,10 +515,16 @@ const ExpertAnalysisModal = ({
 
   // Handle save - FIXED: Exit edit mode after save
   const handleSave = useCallback(async () => {
-    console.log('💾 Save button clicked');
-    
+    console.log('💾 [handleSave] Save button clicked');
+    console.log('💾 [handleSave] localTransmissionData:', localTransmissionData);
+    console.log('💾 [handleSave] localTransmissionData.length:', localTransmissionData?.length);
+
     // Check if there are changes
-    if (!hasChanges()) {
+    const changesDetected = hasChanges();
+    console.log('💾 [handleSave] Changes detected:', changesDetected);
+
+    if (!changesDetected) {
+      console.log('💾 [handleSave] No changes detected, aborting save');
       setSaveStatus('no-changes');
       setTimeout(() => {
         setSaveStatus(null);
@@ -554,10 +596,22 @@ const ExpertAnalysisModal = ({
         setSaveStatus('success');
 
         // Save transmission data immediately (always save, even if empty to handle deletions)
+        console.log('📡 [handleSave] About to save transmission data');
+        console.log('📡 [handleSave] saveTransmissionInterconnection available:', !!saveTransmissionInterconnection);
+        console.log('📡 [handleSave] projectId for transmission:', projectId);
+        console.log('📡 [handleSave] localTransmissionData to save:', localTransmissionData);
+
         if (saveTransmissionInterconnection) {
+          console.log('📡 [handleSave] Calling saveTransmissionInterconnection...');
           saveTransmissionInterconnection(projectId, localTransmissionData)
-            .then(() => console.log(`✅ Transmission data saved (${localTransmissionData.length} entries)`))
-            .catch(error => console.error('Transmission save error:', error));
+            .then((result) => {
+              console.log(`✅ [handleSave] Transmission data saved successfully (${localTransmissionData.length} entries)`, result);
+            })
+            .catch(error => {
+              console.error('❌ [handleSave] Transmission save error:', error);
+            });
+        } else {
+          console.warn('⚠️ [handleSave] saveTransmissionInterconnection function not available!');
         }
 
         // Delay dashboard refresh to allow notification to show

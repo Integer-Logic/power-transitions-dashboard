@@ -556,21 +556,24 @@ class ExpertAnalysis {
     try {
       const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
 
-      console.log('🔍 Fetching transmission data for project ID:', projectId);
+      // Ensure projectId is a string for consistent comparison
+      const projectIdStr = String(projectId);
+
+      console.log('🔍 Fetching transmission data for project ID:', projectIdStr);
 
       // Query transmission data by project_id (stored as varchar in transmission_interconnection)
-      // project_id can be stored as string or integer, so we compare both ways
+      // Use string comparison for reliability
       const query = `
         SELECT ti.*, p.project_name as actual_project_name, p.project_codename, p.iso, p.plant_owner
         FROM ${schema}.transmission_interconnection ti
-        LEFT JOIN ${schema}.projects p ON ti.project_id::integer = p.id
-        WHERE ti.project_id = $1::varchar
+        LEFT JOIN ${schema}.projects p ON p.id = CAST(ti.project_id AS INTEGER)
+        WHERE ti.project_id = $1
         ORDER BY ti.created_at DESC
       `;
 
-      const result = await pool.query(query, [projectId]);
+      const result = await pool.query(query, [projectIdStr]);
 
-      console.log(`✅ Found ${result.rows.length} transmission records for project ID ${projectId}`);
+      console.log(`✅ Found ${result.rows.length} transmission records for project ID ${projectIdStr}`);
       return result.rows;
     } catch (error) {
       console.error('❌ Error in getTransmissionInterconnectionByProjectId:', error);
@@ -618,11 +621,12 @@ class ExpertAnalysis {
 
       // IMPORTANT: Delete ALL existing entries for this project first
       // This ensures removed entries are properly deleted
+      // Cast projectId to varchar for consistent comparison with the column type
       const deleteQuery = `
         DELETE FROM ${schema}.transmission_interconnection
-        WHERE project_id = $1
+        WHERE project_id = $1::varchar
       `;
-      const deleteResult = await client.query(deleteQuery, [projectId]);
+      const deleteResult = await client.query(deleteQuery, [String(projectId)]);
       console.log(`🗑️ Deleted ${deleteResult.rowCount} existing transmission records for project ID ${projectId}`);
 
       // Insert new transmission data
@@ -650,7 +654,7 @@ class ExpertAnalysis {
             parseFloat(item.excessWithdrawalCapacity) || 0,
             item.constraints || '-',
             item.excessIXCapacity !== undefined ? item.excessIXCapacity : true,
-            projectId
+            String(projectId)  // Ensure projectId is stored as string for consistent retrieval
           ];
 
           console.log('📝 Inserting transmission record:', {
