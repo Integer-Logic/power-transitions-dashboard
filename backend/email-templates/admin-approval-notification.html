@@ -1,0 +1,197 @@
+ 
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Registration Requires Approval</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+    .header {
+      background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+      border-radius: 0 0 20px 20px;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .alert-card {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 4px;
+    }
+    .user-details {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 25px;
+      margin: 30px 0;
+    }
+    .detail-row {
+      display: flex;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-label {
+      flex: 0 0 150px;
+      font-weight: 600;
+      color: #555;
+    }
+    .detail-value {
+      flex: 1;
+      color: #333;
+    }
+    .actions {
+      background: #e8f4fd;
+      border-radius: 8px;
+      padding: 25px;
+      margin: 30px 0;
+    }
+    .action-button {
+      display: inline-block;
+      background: #007bff;
+      color: white;
+      padding: 12px 24px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+      margin: 10px 5px;
+    }
+    .reject-button {
+      background: #dc3545;
+    }
+    .footer {
+      text-align: center;
+      padding: 25px;
+      color: #666;
+      font-size: 12px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+    }
+    .highlight {
+      background: #fffacd;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+    .urgent {
+      color: #dc3545;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">⚠️ Action Required</div>
+      <h1>New User Registration Pending Approval</h1>
+    </div>
+    
+    <div class="content">
+      <h2>Hello Administrator,</h2>
+      <p>A new user has registered for the Power Transitions Platform and requires your approval.</p>
+      
+      <div class="alert-card">
+        <h3 style="margin-top: 0; color: #ff9800;">📋 <span class="urgent">URGENT:</span> Registration Approval Required</h3>
+        <p>This registration is pending your review. Please approve or reject within 24 hours.</p>
+      </div>
+      
+      <div class="user-details">
+        <h3>👤 Registration Details:</h3>
+        
+        <div class="detail-row">
+          <div class="detail-label">Username:</div>
+          <div class="detail-value">{{username}}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">Email Address:</div>
+          <div class="detail-value">{{email}}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">Full Name:</div>
+          <div class="detail-value">{{full_name}}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">Registration Date:</div>
+          <div class="detail-value">{{registration_date}}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">Registration IP:</div>
+          <div class="detail-value">{{registration_ip}}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">Status:</div>
+          <div class="detail-value"><span class="highlight">Pending Approval</span></div>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <h3>⚡ Quick Actions:</h3>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="{{approval_link}}" class="action-button">✅ Approve This Registration</a>
+          <a href="{{admin_panel_link}}" class="action-button reject-button">❌ View All Pending</a>
+        </div>
+        
+        <p><strong>Direct Approval Link:</strong></p>
+        <p><a href="{{approval_link}}">{{approval_link}}</a></p>
+        
+        <h4>Review Guidelines:</h4>
+        <ul>
+          <li><strong>Approve</strong> if: User is authorized personnel with @power-transitions.com email</li>
+          <li><strong>Reject</strong> if: Email domain is incorrect or user is not authorized</li>
+          <li><strong>Investigate</strong> if: Registration details seem suspicious</li>
+        </ul>
+      </div>
+      
+      <h3>📊 System Statistics:</h3>
+      <ul>
+        <li>Pending Approvals: {{pending_count}} total</li>
+        <li>Auto-expiry: Registrations expire after 7 days if not reviewed</li>
+        <li>Average approval time: 4 hours</li>
+        <li>Rejection rate: {{rejection_rate}}%</li>
+      </ul>
+      
+      <p><strong>🔒 Security Note:</strong></p>
+      <ul>
+        <li>Only approve users with verified @power-transitions.com emails</li>
+        <li>Verify user identity if necessary</li>
+        <li>Check for duplicate registrations</li>
+        <li>Log all approval/rejection actions</li>
+      </ul>
+    </div>
+    
+    <div class="footer">
+      <p>© {{current_year}} Power Transitions Platform. Critical Infrastructure.</p>
+      <p>This is an automated notification from the User Management System.</p>
+      <p>Access Level: Admin • System: Power Pipeline Dashboard</p>
+    </div>
+  </div>
+</body>
+</html>

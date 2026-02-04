@@ -1,0 +1,178 @@
+ 
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Approved - Power Transitions Platform</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+    .header {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+      border-radius: 0 0 20px 20px;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .success-card {
+      background: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 4px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .info-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    .info-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .info-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+    .instructions {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 25px;
+      margin: 30px 0;
+    }
+    .button {
+      display: inline-block;
+      background: #28a745;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 25px;
+      color: #666;
+      font-size: 12px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+    }
+    .highlight {
+      background: #fffacd;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">✅ Account Approved</div>
+      <h1>Welcome to Power Transitions Platform</h1>
+    </div>
+    
+    <div class="content">
+      <h2>Hello {{username}},</h2>
+      <p>Great news! Your account has been <strong>approved</strong> by the administrator. You now have full access to the Power Pipeline Dashboard.</p>
+      
+      <div class="success-card">
+        <h3 style="margin-top: 0; color: #28a745;">🎉 Account Status: <span class="highlight">ACTIVE</span></h3>
+        <p>Your account is now active and ready to use. You can login immediately.</p>
+      </div>
+      
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Username</div>
+          <div class="info-value">{{username}}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Email</div>
+          <div class="info-value">{{email}}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Approval Date</div>
+          <div class="info-value">{{approval_date}}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Account Role</div>
+          <div class="info-value">{{role}}</div>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="{{frontend_url}}/login" class="button">Login to Power Pipeline Dashboard</a>
+      </div>
+      
+      <div class="instructions">
+        <h3>📝 Login Instructions:</h3>
+        <ol>
+          <li>Go to: <a href="{{frontend_url}}/login">{{frontend_url}}/login</a></li>
+          <li>Enter your username: <strong>{{username}}</strong></li>
+          <li>Enter your password (the one you registered with)</li>
+          <li>Click "Secure Login" button</li>
+          <li>You'll be redirected to your dashboard</li>
+        </ol>
+        
+        <h4>First Time Tips:</h4>
+        <ul>
+          <li>Bookmark the login page for quick access</li>
+          <li>Review the system tour on your first login</li>
+          <li>Complete your profile if you haven't already</li>
+          <li>Download the emergency procedures document</li>
+        </ul>
+      </div>
+      
+      <p><strong>🔐 Password Security:</strong></p>
+      <ul>
+        <li>If you forgot your password, use the "Forgot Password?" link on the login page</li>
+        <li>Never share your credentials with anyone</li>
+        <li>Use a strong, unique password</li>
+        <li>Log out when using public computers</li>
+      </ul>
+      
+      <p><strong>🚨 Emergency Access:</strong></p>
+      <p>For urgent access issues during critical operations, contact:</p>
+      <p><strong>Emergency Support:</strong> ababalola@power-transitions.com</p>
+    </div>
+    
+    <div class="footer">
+      <p>© {{current_year}} Power Transitions Platform. Critical Infrastructure.</p>
+      <p>This is an automated message, please do not reply directly to this email.</p>
+      <p>Access to this system is monitored and logged for security purposes.</p>
+    </div>
+  </div>
+</body>
+</html>
